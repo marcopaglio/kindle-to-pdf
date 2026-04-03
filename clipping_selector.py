@@ -20,7 +20,7 @@ def filter_clippings_pdf(content, pdf_name):
 def main(pdf_path, clippings_path):
     with open(clippings_path, "r", encoding="utf-8-sig") as f:
         clippings_text = f.read()
-    pdf_name = pdf_path.rsplit(".", 1)[0]
+    pdf_name = pdf_path.rsplit(".", 1)[0] #TODO: this not work if pdf has "." in the name. Es: hello.world.pdf
 
     new_clipping_text = filter_clippings_pdf(clippings_text, pdf_name)
     
@@ -31,7 +31,7 @@ def main(pdf_path, clippings_path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python kindle_to_pdf.py input.pdf clippings.txt")
+        print("Usage: python clipping_selector.py input.pdf clippings.txt")
         sys.exit(1)
 
     main(sys.argv[1], sys.argv[2])
