@@ -1,6 +1,5 @@
 import fitz
 import re
-import sys
 import unicodedata
 from tqdm import tqdm
 from rapidfuzz import fuzz
@@ -135,26 +134,43 @@ def is_valid_match(highlight_text, matched_window,
 
 
 # ------------------------------------------------------------
-# Main
+# Change page number
 # ------------------------------------------------------------
 
-def main(pdf_path, clippings_path):
-    with open(clippings_path, "r", encoding="utf-8-sig") as f:
-        clippings_text = f.read()
+def check_page_indexing(doc, highlights):
+    for i, hl in enumerate(highlights):
+        print(f"\nSearching correspondences for \"{hl['content']}\"...", end="")
+        highlight_page = hl["page"]
+    
+        for page_index, page in enumerate(doc):
+            page_number = page_index + 1
+            print(f"\n...at page {page_number} of the document", end="")
+    
+            # Try exact match first (fast)
+            quads = page.search_for(hl["content"], quads=True)
+            if quads:
+                print(": FOUND.")
+                offset = highlight_page - page_number
+                return offset
+            
 
-    highlights = parse_clippings(clippings_text)
-    print(f"Found {len(highlights)} highlights in clippings")
 
-    doc = fitz.open(pdf_path)
+
+# ------------------------------------------------------------
+# Search and highlight
+# ------------------------------------------------------------
+
+def search_and_highlight(doc, highlights, offset):
     processed = set()
     remaining = []
-
+    
     for page_index, page in enumerate(tqdm(doc, desc="Processing pages")):
         page_number = page_index + 1
         page_text = page.get_text()
 
         for i, hl in enumerate(highlights):
-            if i in processed or hl["page"] != page_number:
+            highlight_page = hl["page"] - offset
+            if i in processed or highlight_page != page_number:
                 continue
 
             # Try exact match first (fast)
@@ -177,23 +193,6 @@ def main(pdf_path, clippings_path):
     for i, hl in enumerate(highlights):
         if i not in processed:
             remaining.append(hl)
-
-    output_path = pdf_path.rsplit(".", 1)[0] + "_annotated.pdf"
-    doc.save(output_path)
-
-    print(f"\nAnnotated PDF saved to: {output_path}")
-    print(f"Highlights applied: {len(processed)} / {len(highlights)}")
-
-    if remaining:
-        print("\nHighlights not found:")
-        for hl in remaining:
-            print(f"- {hl['content'][:100]}... at page {hl['page']}")
-
-
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python kindle_to_pdf.py input.pdf clippings.txt")
-        sys.exit(1)
-
-    main(sys.argv[1], sys.argv[2])
+            
+    return processed, remaining
 
