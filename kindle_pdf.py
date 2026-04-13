@@ -2,6 +2,7 @@ import re
 import unicodedata
 from tqdm import tqdm
 from rapidfuzz import fuzz
+from itertools import combinations
 
 # ------------------------------------------------------------
 # Text utilities
@@ -62,9 +63,9 @@ def search_keywords(page, text, max_words=6):
     return None
 
 
-# -------------------------
+# ------------------------------------------------------------
 # Overlapping tools
-# -------------------------
+# ------------------------------------------------------------
 
 def extract_keywords(text, min_len=4):
     words = normalize_text(text).split()
@@ -81,6 +82,30 @@ def is_already_highlighted(page, quads, existing_rects):
             if rects_overlap(quad.rect, er):
                 return True
     return False
+
+
+# ------------------------------------------------------------
+# Ambiguity tools
+# ------------------------------------------------------------
+
+def get_text_from_quad(page, quad):
+    rect = quad.rect
+    text = page.get_textbox(rect)
+    return normalize_text(text)
+
+
+def is_unambiguous_match(page, quads):
+    if len(quads) <= 1:
+        return True
+
+    texts = [get_text_from_quad(page, q) for q in quads]
+    texts = [t for t in texts if t] # Necessary in combination with normalized_text
+
+    for a_text, another_text in combinations(texts, 2):
+        if a_text == another_text:
+            return False
+
+    return True
 
 
 # ------------------------------------------------------------
@@ -210,23 +235,23 @@ def search_and_highlight(doc, highlights, offset):
                 if match and is_valid_match(hl["content"], match):
                     quads = search_keywords(page, match)
             
-            if quads:
-                hl_keywords = extract_keywords(hl["content"])
-                
-                # Discard overlapped highlights
-                if (any(word in used_words_on_page for word in hl_keywords) 
-                    and is_already_highlighted(page, quads, existing_rects)):
-                    overlaps.append(hl)
+            if quads and is_unambiguous_match(page, quads):
+                    hl_keywords = extract_keywords(hl["content"])
+                    
+                    # Discard overlapped highlights
+                    if (any(word in used_words_on_page for word in hl_keywords) 
+                        and is_already_highlighted(page, quads, existing_rects)):
+                        overlaps.append(hl)
+                        processed.add(i)
+                        continue
+                    
+                    # Apply highlights
+                    annot = page.add_highlight_annot(quads)
+                    annot.update()
                     processed.add(i)
-                    continue
-                
-                # Apply highlights
-                annot = page.add_highlight_annot(quads)
-                annot.update()
-                processed.add(i)
-                used_words_on_page.update(hl_keywords)
-                for quad in quads:
-                    existing_rects.append(quad.rect)
+                    used_words_on_page.update(hl_keywords)
+                    for quad in quads:
+                        existing_rects.append(quad.rect)
 
 
     for i, hl in enumerate(highlights):
