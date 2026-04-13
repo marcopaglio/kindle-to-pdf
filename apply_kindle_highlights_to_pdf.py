@@ -52,8 +52,12 @@ def main(pdf_path, clippings_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python kindle_to_pdf.py \"input.pdf\" \"clippings.txt\"")
-        sys.exit(1)
+    if len(sys.argv) != 2:
+        if len(sys.argv) != 3:
+            print("Usage: \tpython apply_kindle_highlights_to_pdf.py \"input.pdf\" \"clippings.txt\"\nor: \tpython apply_kindle_highlights_to_pdf.py \"input.pdf\"")
+            sys.exit(1)
+        arg_2 = sys.argv[2]
+    else:
+        arg_2 = "My Clippings.txt"
 
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], arg_2)

@@ -175,20 +175,20 @@ def search_and_highlight(doc, highlights, offset):
 
             # Try exact match first (fast)
             quads = page.search_for(hl["content"], quads=True)
+            
+            # Fuzzy fallback
+            if not quads:
+                match, score = fuzzy_find_in_page(page_text, hl["content"])
+                if match and is_valid_match(hl["content"], match):
+                    quads = search_keywords(page, match)
+            
+            # Apply highlights
             if quads:
                 annot = page.add_highlight_annot(quads)
                 annot.update()
                 processed.add(i)
                 continue
 
-            # Fuzzy fallback
-            match, score = fuzzy_find_in_page(page_text, hl["content"])
-            if match and is_valid_match(hl["content"], match):
-                quads = search_keywords(page, match)
-                if quads:
-                    annot = page.add_highlight_annot(quads)
-                    annot.update()
-                    processed.add(i)
 
     for i, hl in enumerate(highlights):
         if i not in processed:
