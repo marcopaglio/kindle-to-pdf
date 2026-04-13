@@ -63,7 +63,7 @@ def search_keywords(page, text, max_words=6):
 
 
 # -------------------------
-# Duplication tools
+# Overlapping tools
 # -------------------------
 
 def extract_keywords(text, min_len=4):
@@ -182,7 +182,7 @@ def check_page_indexing(doc, highlights):
 
 def search_and_highlight(doc, highlights, offset):
     processed = set()
-    duplicates = []
+    overlaps = []
     remaining = []
     
     for page_index, page in enumerate(tqdm(doc, desc="Processing pages")):
@@ -192,7 +192,7 @@ def search_and_highlight(doc, highlights, offset):
         used_words_on_page = set()
         existing_rects = []
         
-        # Reverse ordering (necessary for duplicates) 
+        # Reverse ordering (necessary for overlaps) 
         # and filter by current page (offset occurs)
         reverse_page_highlights = [
             (i, hl) for i, hl in enumerate(highlights)
@@ -213,10 +213,10 @@ def search_and_highlight(doc, highlights, offset):
             if quads:
                 hl_keywords = extract_keywords(hl["content"])
                 
-                # Discard duplicated highlights
+                # Discard overlapped highlights
                 if (any(word in used_words_on_page for word in hl_keywords) 
                     and is_already_highlighted(page, quads, existing_rects)):
-                    duplicates.append(hl)
+                    overlaps.append(hl)
                     processed.add(i)
                     continue
                 
@@ -233,5 +233,5 @@ def search_and_highlight(doc, highlights, offset):
         if i not in processed:
             remaining.append(hl)
             
-    return processed, duplicates, remaining
+    return processed, overlaps, remaining
 
