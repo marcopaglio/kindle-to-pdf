@@ -32,21 +32,34 @@ def main(pdf_path, clippings_path):
     print(f"\nCalculated offset is: {offset}")
                          
     # 6. Search and highlight
-    processed, remaining = search_and_highlight(doc, highlights, offset)
-    print(f"\nHighlights applied: {len(processed)} / {len(highlights)}")
+    processed, duplicates, remaining = search_and_highlight(doc, highlights, offset)
+    num_highlights_applied = len(processed)-len(duplicates)
+    print(f"\nHighlights applied: {num_highlights_applied} / {len(highlights)}", end="")
     
 
     # 7. Save highlighted pdf
     pdf_output_path = pdf_name + "_annotated.pdf"
     doc.save(pdf_output_path)
-    print(f"\nAnnotated PDF saved to: {pdf_output_path}")
+    print(f"\t\t -> Annotated PDF saved to: {pdf_output_path}")
 
-    # 8. Save not found highlights
+    # 8. Save duplicated and not found highlights
+    print(f"\nHighlights duplicated: {len(duplicates)} / {len(highlights)}", end="")
+    duplicates_output_path = pdf_name + "_duplicated.txt"
+    with open(duplicates_output_path, 'w', encoding="utf-8-sig") as output:
+        output.write(f"Highlights applied: {num_highlights_applied} / {len(highlights)}")
+        output.write(f"\nHighlights duplicated: {len(duplicates)} / {len(highlights)}\n\n")
+        for hl in duplicates:
+            output.write(f"- {hl['content'][:100]} \tat page {hl['page']-offset}\n")
+    print(f"\t\t -> Duplicated highlights saved to: {duplicates_output_path}")
+            
+    print(f"\nHighlights remained: {len(remaining)} / {len(highlights)}", end="")
     remaining_output_path = pdf_name + "_notFound.txt"
     with open(remaining_output_path, 'w', encoding="utf-8-sig") as output:
-        output.write(f"Highlights applied: {len(processed)} / {len(highlights)}\n\n")
+        output.write(f"Highlights applied: {num_highlights_applied} / {len(highlights)}")
+        output.write(f"\nHighlights duplicated: {len(duplicates)} / {len(highlights)}\n\n")
         for hl in remaining:
-            output.write(f"- {hl['content'][:100]} at page {hl['page']-offset}\n")
+            output.write(f"- {hl['content'][:100]} \tat page {hl['page']-offset}\n")
+    print(f"\t\t -> Reamined highlights saved to: {remaining_output_path}")
 
 
 

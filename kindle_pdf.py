@@ -1,4 +1,3 @@
-import fitz
 import re
 import unicodedata
 from tqdm import tqdm
@@ -61,6 +60,27 @@ def search_keywords(page, text, max_words=6):
         if quads:
             return quads
     return None
+
+
+# -------------------------
+# Duplication tools
+# -------------------------
+
+def extract_keywords(text, min_len=4):
+    words = normalize_text(text).split()
+    return set(w for w in words if len(w) >= min_len)
+
+
+def rects_overlap(r1, r2):
+    return r1.intersects(r2)
+
+
+def is_already_highlighted(page, quads, existing_rects):
+    for quad in quads:
+        for er in existing_rects:
+            if rects_overlap(quad.rect, er):
+                return True
+    return False
 
 
 # ------------------------------------------------------------
@@ -162,20 +182,25 @@ def check_page_indexing(doc, highlights):
 
 def search_and_highlight(doc, highlights, offset):
     processed = set()
+    duplicates = []
     remaining = []
     
     for page_index, page in enumerate(tqdm(doc, desc="Processing pages")):
         page_number = page_index + 1
         page_text = page.get_text()
         
-        # Filter highlights by current page (offset occurs)
-        page_highlights = [
+        used_words_on_page = set()
+        existing_rects = []
+        
+        # Reverse ordering (necessary for duplicates) 
+        # and filter by current page (offset occurs)
+        reverse_page_highlights = [
             (i, hl) for i, hl in enumerate(highlights)
             if hl["page"] - offset == page_number and i not in processed
-        ]
+        ][::-1]
 
-        for i, hl in page_highlights:
-
+        for i, hl in reverse_page_highlights:
+            
             # Try exact match first (fast)
             quads = page.search_for(hl["content"], quads=True)
             
@@ -185,17 +210,28 @@ def search_and_highlight(doc, highlights, offset):
                 if match and is_valid_match(hl["content"], match):
                     quads = search_keywords(page, match)
             
-            # Apply highlights
             if quads:
+                hl_keywords = extract_keywords(hl["content"])
+                
+                # Discard duplicated highlights
+                if (any(word in used_words_on_page for word in hl_keywords) 
+                    and is_already_highlighted(page, quads, existing_rects)):
+                    duplicates.append(hl)
+                    processed.add(i)
+                    continue
+                
+                # Apply highlights
                 annot = page.add_highlight_annot(quads)
                 annot.update()
                 processed.add(i)
-                continue
+                used_words_on_page.update(hl_keywords)
+                for quad in quads:
+                    existing_rects.append(quad.rect)
 
 
     for i, hl in enumerate(highlights):
         if i not in processed:
             remaining.append(hl)
             
-    return processed, remaining
+    return processed, duplicates, remaining
 
