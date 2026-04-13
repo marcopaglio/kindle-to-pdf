@@ -167,11 +167,14 @@ def search_and_highlight(doc, highlights, offset):
     for page_index, page in enumerate(tqdm(doc, desc="Processing pages")):
         page_number = page_index + 1
         page_text = page.get_text()
+        
+        # Filter highlights by current page (offset occurs)
+        page_highlights = [
+            (i, hl) for i, hl in enumerate(highlights)
+            if hl["page"] - offset == page_number and i not in processed
+        ]
 
-        for i, hl in enumerate(highlights):
-            highlight_page = hl["page"] - offset
-            if i in processed or highlight_page != page_number:
-                continue
+        for i, hl in page_highlights:
 
             # Try exact match first (fast)
             quads = page.search_for(hl["content"], quads=True)
